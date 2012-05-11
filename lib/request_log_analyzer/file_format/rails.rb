@@ -11,17 +11,17 @@ module RequestLogAnalyzer::FileFormat
 
     # Creates a Rails FileFormat instance.
     #
-    # The lines that will be parsed can be defined by the argument to this function, 
+    # The lines that will be parsed can be defined by the argument to this function,
     # which should be an array of line names, or a list of line names as comma separated
-    # string. The resulting report depends on the lines that will be parsed. You can 
+    # string. The resulting report depends on the lines that will be parsed. You can
     # also provide s string that describes a common set of lines, like "production",
     # "development" or "production".
     def self.create(lines = 'production')
       definitions_hash = line_definer.line_definitions.clone
-      
+
       lines = lines.to_s.split(',') if lines.kind_of?(String)
       lines = [lines.to_s]          if lines.kind_of?(Symbol)
-      
+
       lines.each do |line|
         line = line.to_sym
         if LINE_COLLECTIONS.has_key?(line)
@@ -35,32 +35,33 @@ module RequestLogAnalyzer::FileFormat
 
       return self.new(definitions_hash, report_trackers(definitions_hash))
     end
-    
+
     # Creates trackers based on the specified line definitions.
     #
     # The more lines that will be parsed, the more information will appear in the report.
     def self.report_trackers(lines)
       analyze = RequestLogAnalyzer::Aggregator::Summarizer::Definer.new
-      
+
       analyze.timespan
       analyze.hourly_spread
-      
+
       analyze.frequency :category => REQUEST_CATEGORIZER, :title => 'Most requested'
       analyze.frequency :method, :title => 'HTTP methods'
       analyze.frequency :status, :title => 'HTTP statuses returned'
-      
+      analyze.frequency :ip, :title => 'IP addresses'
+
       if lines.has_key?(:cache_hit)
-        analyze.frequency(:category => lambda { |request| request =~ :cache_hit ? 'Cache hit' : 'No hit' }, 
+        analyze.frequency(:category => lambda { |request| request =~ :cache_hit ? 'Cache hit' : 'No hit' },
               :title => 'Rails action cache hits')
       end
-      
+
       analyze.duration :duration, :category => REQUEST_CATEGORIZER, :title => "Request duration",    :line_type => :completed
       analyze.duration :view,     :category => REQUEST_CATEGORIZER, :title => "View rendering time", :line_type => :completed
       analyze.duration :db,       :category => REQUEST_CATEGORIZER, :title => "Database time",       :line_type => :completed
-      
+
       analyze.frequency :category => REQUEST_CATEGORIZER, :title => 'Process blockers (> 1 sec duration)',
         :if => lambda { |request| request[:duration] && request[:duration] > 1.0 }
-      
+
       if lines.has_key?(:failure)
         analyze.frequency :error, :title => 'Failed requests', :line_type => :failure
       end
@@ -72,7 +73,7 @@ module RequestLogAnalyzer::FileFormat
       if lines.has_key?(:query_executed)
         analyze.duration :query_duration, :category => :query_sql, :multiple => true, :title => 'Query duration'
       end
-      
+
       return analyze.trackers + report_definer.trackers
     end
 
@@ -83,7 +84,7 @@ module RequestLogAnalyzer::FileFormat
     # Rails > 2.1 completed line example
     # Completed in 614ms (View: 120, DB: 31) | 200 OK [http://floorplanner.local/demo]
     RAILS_22_COMPLETED = /Completed in (\d+)ms \((?:View: (\d+))?,?(?:.?DB: (\d+))?\)? \| (\d{3}).+\[(http.+)\]/
-                        
+
     # A hash of definitions for all common lines in Rails logs.
     LINE_DEFINITIONS = {
       :processing => RequestLogAnalyzer::LineDefinition.new(:processing, :header => true,
