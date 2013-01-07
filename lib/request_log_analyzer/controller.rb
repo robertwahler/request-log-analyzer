@@ -97,7 +97,7 @@ module RequestLogAnalyzer
     #
     # Options
     # * <tt>:after</tt> Drop all requests after this date (Date, DateTime, Time, or a String in "YYYY-MM-DD hh:mm:ss" format)
-    # * <tt>:aggregator</tt> Array of aggregators (ATM: STRINGS OR SYMBOLS ONLY! - Defaults to [:summarizer]).
+    # * <tt>:aggregator</tt> Array of aggregators (Strings or Symbols for the builtin aggregators or a RequestLogAnalyzer::Aggregator class - Defaults to [:summarizer]).
     # * <tt>:boring</tt> Do not show color on STDOUT (Defaults to false).
     # * <tt>:before</tt> Drop all requests before this date (Date, DateTime, Time or a String in "YYYY-MM-DD hh:mm:ss" format)
     # * <tt>:database</tt> Database file to insert encountered requests to.
@@ -116,6 +116,7 @@ module RequestLogAnalyzer
     # * <tt>:source_files</tt> Source files to analyze. Provide either File, array of files or STDIN.
     # * <tt>:yaml</tt> Output to YAML file.
     # * <tt>:silent</tt> Minimal output automatically implies :no_progress
+    # * <tt>:source</tt> The class to instantiate to grab the requestes, must be a RequestLogAnalyzer::Source::Base descendant. (Defaults to RequestLogAnalyzer::Source::LogParser)
     #
     # === Example
     # RequestLogAnalyzer::Controller.build(
@@ -138,6 +139,7 @@ module RequestLogAnalyzer
       options[:report_sort]   ||= 'sum,mean'
       options[:boring]        ||= false
       options[:silent]        ||= false
+      options[:source]        ||= RequestLogAnalyzer::Source::LogParser
 
       options[:no_progress] = true if options[:silent]
 
@@ -182,9 +184,9 @@ module RequestLogAnalyzer
 
       # Kickstart the controller
       controller =
-        Controller.new(RequestLogAnalyzer::Source::LogParser.new(file_format,
-                                                                 :source_files => options[:source_files],
-                                                                 :parse_strategy => options[:parse_strategy]),
+        Controller.new(options[:source].new(file_format,
+                                            :source_files => options[:source_files],
+                                            :parse_strategy => options[:parse_strategy]),
                        { :output         => output_instance,
                          :database       => options[:database],                # FUGLY!
                          :yaml           => options[:yaml],
@@ -220,7 +222,7 @@ module RequestLogAnalyzer
       end
 
       # register aggregators
-      options[:aggregator].each { |agg| controller.add_aggregator(agg.to_sym) }
+      options[:aggregator].each { |agg| controller.add_aggregator(agg) }
       controller.add_aggregator(:summarizer)          if options[:aggregator].empty?
       controller.add_aggregator(:echo)                if options[:debug]
       controller.add_aggregator(:database_inserter)   if options[:database] && !options[:aggregator].include?('database')
@@ -284,7 +286,7 @@ module RequestLogAnalyzer
     # Adds an aggregator to the controller. The aggregator will be called for every request
     # that is parsed from the provided sources (see add_source)
     def add_aggregator(agg)
-      agg = RequestLogAnalyzer::Aggregator.const_get(RequestLogAnalyzer.to_camelcase(agg)) if agg.kind_of?(Symbol)
+      agg = RequestLogAnalyzer::Aggregator.const_get(RequestLogAnalyzer.to_camelcase(agg)) if agg.kind_of?(String) || agg.kind_of?(Symbol)
       @aggregators << agg.new(@source, @options)
     end
 

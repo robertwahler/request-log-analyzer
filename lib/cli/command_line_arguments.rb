@@ -17,7 +17,7 @@ module CommandLine
     # <tt>definition</tt> The definition of the flag.
     def initialize(name, definition = {})
       @name            = CommandLine::Option.rewrite(name)
-      @alias           = definition[:alias].to_sym if definition[:alias]
+      @alias           = definition[:alias] ? definition[:alias].to_sym : nil
       @required        = definition.has_key?(:required) && definition[:required] == true
       @parameter_count = definition[:parameters] || 1
       @multiple        = definition[:multiple]   || false
@@ -103,7 +103,7 @@ module CommandLine
 
       def [](option_name)
         option_symbol = CommandLine::Option.rewrite(option_name)
-        if the_option = @options.detect { |(name, odef)| odef =~ option_symbol }
+        if the_option = @options.detect { |(_, odef)| odef =~ option_symbol }
           the_option[1]
         else
           raise CommandLine::UnknownOption, option_name
@@ -164,7 +164,7 @@ module CommandLine
     end
 
     def [](option)
-      if the_option = @options.detect { |(key, value)| key =~ option }
+      if the_option = @options.detect { |(key, _)| key =~ option }
         the_option[1]
       else
         @current_definition[option].default_value

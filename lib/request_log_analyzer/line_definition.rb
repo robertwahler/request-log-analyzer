@@ -10,7 +10,7 @@ module RequestLogAnalyzer
       attr_accessor :line_definitions
 
       def initialize
-        @line_definitions = {}
+        @line_definitions = OrderedHash.new
       end
 
       def initialize_copy(other)
@@ -44,7 +44,7 @@ module RequestLogAnalyzer
     end
 
     attr_reader :name
-    attr_accessor :teaser, :regexp, :captures
+    attr_accessor :teaser, :regexp, :captures, :compound
     attr_accessor :header, :footer
 
     alias_method :header?, :header
@@ -56,6 +56,7 @@ module RequestLogAnalyzer
       @name     = name
       @captures = []
       @teaser   = nil
+      @compound = []
       definition.each { |key, value| self.send("#{key.to_s}=".to_sym, value) }
     end
 
@@ -66,7 +67,9 @@ module RequestLogAnalyzer
     end
     
     def capture(name)
-      new_capture_hash = { :name => name, :type => :string}
+      new_capture_hash = OrderedHash.new()
+      new_capture_hash[:name] = name
+      new_capture_hash[:type] = :string
       captures << new_capture_hash
       CaptureDefiner.new(new_capture_hash)
     end

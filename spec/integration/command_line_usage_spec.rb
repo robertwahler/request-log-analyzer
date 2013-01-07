@@ -20,7 +20,6 @@ describe RequestLogAnalyzer, 'running from command line' do
     output.any? { |line| /^Parsed requests\:\s*2\s/ =~ line }.should be_true
   end
 
-
   it "should skip 1 requests with a --select option" do
     output = run("#{log_fixture(:rails_1x)} --select controller PeopleController")
     output.any? { |line| /^Skipped requests\:\s*1\s/ =~ line }.should be_true
@@ -86,5 +85,10 @@ describe RequestLogAnalyzer, 'running from command line' do
   it "should parse 4 requests from the standard input" do
     output = run("--format rails - < #{log_fixture(:rails_1x)}")
     output.any? { |line| /^Parsed requests\:\s*4\s/ =~ line }.should be_true
+  end
+
+  it "should accept a directory as a commandline option" do
+    output = run("#{log_directory_fixture("s3_logs")} --format amazon_s3")
+    output.any? { |line| /^Parsed requests:\s*8\s/ =~ line }.should be_true
   end
 end

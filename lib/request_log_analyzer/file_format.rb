@@ -7,10 +7,12 @@ module RequestLogAnalyzer::FileFormat
   autoload :Rack,             'request_log_analyzer/file_format/rack'
   autoload :Merb,             'request_log_analyzer/file_format/merb'
   autoload :Mysql,            'request_log_analyzer/file_format/mysql'
+  autoload :Nginx,            'request_log_analyzer/file_format/nginx'
   autoload :Postgresql,       'request_log_analyzer/file_format/postgresql'
   autoload :DelayedJob,       'request_log_analyzer/file_format/delayed_job'
   autoload :DelayedJob2,      'request_log_analyzer/file_format/delayed_job2'
   autoload :DelayedJob21,     'request_log_analyzer/file_format/delayed_job21'
+  autoload :DelayedJob3,      'request_log_analyzer/file_format/delayed_job3'
   autoload :Apache,           'request_log_analyzer/file_format/apache'
   autoload :AmazonS3,         'request_log_analyzer/file_format/amazon_s3'
   autoload :W3c,              'request_log_analyzer/file_format/w3c'
@@ -258,7 +260,7 @@ module RequestLogAnalyzer::FileFormat
       return self.new(line_definer.line_definitions, report_definer.trackers)
     end
 
-    def initialize(line_definitions = {}, report_trackers = [])
+    def initialize(line_definitions = OrderedHash.new, report_trackers = [])
       @line_definitions, @report_trackers = line_definitions, report_trackers
     end
 
@@ -287,7 +289,7 @@ module RequestLogAnalyzer::FileFormat
     # Checks whether the line definitions form a valid language.
     # A file format should have at least a header and a footer line type    
     def valid_line_definitions?
-      line_definitions.any? { |(name, ld)| ld.header } && line_definitions.any? { |(name, ld)| ld.footer }
+      line_definitions.any? { |(_, ld)| ld.header } && line_definitions.any? { |(_, ld)| ld.footer }
     end
     
     # Checks whether the request class inherits from the base Request class.
@@ -297,7 +299,7 @@ module RequestLogAnalyzer::FileFormat
 
     # Returns true if this language captures the given symbol in one of its line definitions
     def captures?(name)
-      line_definitions.any? { |(name, ld)| ld.captures?(name) }
+      line_definitions.any? { |(_, ld)| ld.captures?(name) }
     end
 
     # Function that a file format con implement to monkey patch the environment.

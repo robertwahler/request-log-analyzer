@@ -49,11 +49,10 @@ module RequestLogAnalyzer::Tracker
         found_categories.each_with_index do |cat, index|
           update_statistics(cat, found_values[index]) if cat && found_values[index].kind_of?(Numeric)
         end
-
       else
         category = @categorizer.call(request)
         value    = @valueizer.call(request)
-        update_statistics(category, value) if value.kind_of?(Numeric) && category
+        update_statistics(category, value) if (value.kind_of?(Numeric) || value.kind_of?(Array)) && category
       end
     end
 
@@ -68,7 +67,7 @@ module RequestLogAnalyzer::Tracker
       top_categories = output.slice_results(sorted_by(sort))
       output.with_style(:top_line => true) do
         output.table(*statistics_header(:title => options[:title], :highlight => sort)) do |rows|
-          top_categories.each { |(cat, info)| rows << statistics_row(cat) }
+          top_categories.each { |(category, _)| rows << statistics_row(category) }
         end
       end
     end
@@ -227,6 +226,8 @@ module RequestLogAnalyzer::Tracker
     # <tt>category</tt>:: The category for which to update the running statistics calculations
     # <tt>number</tt>:: The numeric value to update the calculations with.
     def update_statistics(category, number)
+      return number.map {|n| update_statistics(category, n)} if number.is_a?(Array)
+
       @categories[category] ||= { :hits => 0, :sum => 0, :mean => 0.0, :sum_of_squares => 0.0, :min => number, :max => number, 
                                   :buckets => Array.new(@number_of_buckets, 0) }
       
@@ -292,12 +293,12 @@ module RequestLogAnalyzer::Tracker
 
     # Get the cumlative duration of a all categories.
     def sum_overall
-      @categories.inject(0.0) { |sum, (name, cat)| sum + cat[:sum] }
+      @categories.inject(0.0) { |sum, (_, cat)| sum + cat[:sum] }
     end
 
     # Get the total hits of a all categories.
     def hits_overall
-      @categories.inject(0) { |sum, (name, cat)| sum + cat[:hits] }
+      @categories.inject(0) { |sum, (_, cat)| sum + cat[:hits] }
     end
 
     # Return categories sorted by a given key.
