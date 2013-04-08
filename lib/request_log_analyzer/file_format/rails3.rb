@@ -32,8 +32,8 @@ module RequestLogAnalyzer::FileFormat
 
     # Parameters: {"action"=>"cached", "controller"=>"cached"}
     line_definition :parameters do |line|
-      line.teaser = / Parameters:/
-      line.regexp = / Parameters:\s+(\{.*\})/
+      line.teaser = /\bParameters:/
+      line.regexp = /\bParameters:\s+(\{.*\})/
       line.capture(:params).as(:eval)
     end
 
@@ -51,6 +51,14 @@ module RequestLogAnalyzer::FileFormat
       line.capture(:db).as(:duration, :unit => :msec)
     end
 
+    # ActionController::RoutingError (No route matches [GET] "/missing_stuff"):
+    line_definition :routing_errors do |line|
+      line.teaser = /RoutingError/
+      line.regexp = /No route matches \[([A-Z]+)\] "([^"]+)"/
+      line.capture(:missing_resource_method).as(:string)
+      line.capture(:missing_resource).as(:string)
+    end
+
     # ActionView::Template::Error (undefined local variable or method `field' for #<Class>) on line #3 of /Users/willem/Code/warehouse/app/views/queries/execute.csv.erb:
     line_definition :failure do |line|
       line.footer = true
@@ -65,8 +73,8 @@ module RequestLogAnalyzer::FileFormat
     # Rendered queries/index.html.erb (0.6ms)
     line_definition :rendered do |line|
       line.compound = [:partial_duration]
-      line.teaser = / Rendered /
-      line.regexp = / Rendered ([a-zA-Z0-9_\-\/.]+(?:\/[a-zA-Z0-9_\-.]+)+)(?:\ within\ .*?)? \((\d+(?:\.\d+)?)ms\)/
+      line.teaser = /\bRendered /
+      line.regexp = /\bRendered ([a-zA-Z0-9_\-\/.]+(?:\/[a-zA-Z0-9_\-.]+)+)(?:\ within\ .*?)? \((\d+(?:\.\d+)?)ms\)/
       line.capture(:rendered_file)
       line.capture(:partial_duration).as(:duration, :unit => :msec)
     end
@@ -94,6 +102,9 @@ module RequestLogAnalyzer::FileFormat
 
       analyze.frequency :category => REQUEST_CATEGORIZER, :title => 'Process blockers (> 1 sec duration)',
         :if => lambda { |request| request[:duration] && request[:duration] > 1.0 }
+
+      analyze.frequency :category => lambda{|x| "[#{x[:missing_resource_method]}] #{x[:missing_resource]}"},
+        :title => "Routing Errors", :if => lambda{ |request| !request[:missing_resource].nil? }
     end
 
     class Request < RequestLogAnalyzer::Request
